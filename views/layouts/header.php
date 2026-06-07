@@ -24,7 +24,8 @@
     </div>
     <div>
         <span>Hola, <?php echo htmlspecialchars($_SESSION['nombre']); ?></span>
-        <a href="index.php?ruta=dashboard">Inicio</a>
+        <a href="index.php?ruta=dashboard">Inicio (Ventas)</a>
+        <a href="index.php?ruta=inventario">Inventario</a> 
         <a href="index.php?ruta=logout">Cerrar Sesión</a>
     </div>
 </div>

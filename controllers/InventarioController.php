@@ -70,27 +70,33 @@ class InventarioController {
 
     public function guardar() {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            // Capturamos el nuevo dato
-            $codigo_barras = trim($_POST['codigo_barras'] ?? ''); 
-            
+            // 1. Capturamos todas las variables del formulario
+            $codigo_barras = trim($_POST['codigo_barras'] ?? '');
             $nombre = $_POST['nombre'];
             $precio = $_POST['precio'];
             $stock = $_POST['stock'];
             $id_marca = $_POST['id_marca'];
             $id_categoria = $_POST['id_categoria'];
-            $id_departamento = $_POST['id_departamento']; 
+            $id_departamento = $_POST['id_departamento'];
             
+            // 2. Obtenemos el ID de la URL si es edición
             $id = $_GET['id'] ?? null;
 
+            // 3. Ejecutamos la lógica según si es nuevo o edición
             if ($id) {
-                // Pasamos el codigo_barras a la actualización
                 $this->productoModel->actualizar($id, $codigo_barras, $nombre, $precio, $stock, $id_marca, $id_categoria, $id_departamento);
+                $_SESSION['mensaje'] = "Producto actualizado correctamente.";
+                $_SESSION['tipo'] = 'exito';
             } else {
-                // Pasamos el codigo_barras a la creación
                 $this->productoModel->crear($codigo_barras, $nombre, $precio, $stock, $id_marca, $id_categoria, $id_departamento);
+                $_SESSION['mensaje'] = "Producto agregado al inventario.";
+                $_SESSION['tipo'] = 'exito';
             }
         }
-        header("Location: index.php?ruta=inventario&dept=" . $id_departamento);
+        
+        // 4. Redirigimos usando el ID del departamento capturado
+        $id_dept = $_POST['id_departamento'] ?? 1;
+        header("Location: index.php?ruta=inventario&dept=" . $id_dept);
         exit();
     }
 

@@ -55,6 +55,24 @@ switch ($ruta) {
         $ventas->eliminarItem();
         break;
 
+    case 'usuarios':
+        require_once 'controllers/UsuarioController.php';
+        $uController = new UsuarioController($conexion);
+        $uController->index();
+        break;
+
+    case 'usuarios_crear':
+        require_once 'controllers/UsuarioController.php';
+        $uController = new UsuarioController($conexion);
+        $uController->crear();
+        break;
+
+    case 'usuarios_guardar':
+        require_once 'controllers/UsuarioController.php';
+        $uController = new UsuarioController($conexion);
+        $uController->guardar();
+        break;
+
     case 'inventario_guardar':
         $inventario = new InventarioController($conexion);
         $inventario->guardar();

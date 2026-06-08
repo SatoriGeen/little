@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>POS Profesional</title>
+    <title>Profesional</title>
     <style>
         /* Paleta Corporativa "Soft UI" - Anti Fatiga Visual */
         :root {
@@ -83,16 +83,17 @@
 <body>
 
 <div class="sidebar">
-    <div class="sidebar-header">POS Administración</div>
+    <div class="sidebar-header">Administración</div>
     <ul class="nav-links">
-        <li><a href="index.php?ruta=dashboard">🛒 Ventas (POS)</a></li>
-        <li><a href="index.php?ruta=inventario">📦 Inventario</a></li>
-        
+        <li><a href="index.php?ruta=dashboard">Ventas</a></li>
+        <li><a href="index.php?ruta=inventario">Inventario</a></li>
         <?php if (isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin'): ?>
-            <li><a href="index.php?ruta=usuarios">👥 Usuarios</a></li>
+            <li><a href="index.php?ruta=reportes">Analíticas</a></li>
+            
+            <li><a href="index.php?ruta=usuarios">Usuarios</a></li>
+            <li><a href="index.php?ruta=configuracion">Catálogos</a></li>
         <?php endif; ?>
-        
-        <li><a href="index.php?ruta=logout" style="color: #ECEFF1; border-top: 1px solid #334155;">🚪 Cerrar Sesión</a></li>
+        <li><a href="index.php?ruta=logout" style="color: #ECEFF1; border-top: 1px solid #334155;">Cerrar Sesión</a></li>
     </ul>
 </div>
 

@@ -22,11 +22,11 @@
 <form method="GET" action="index.php" style="display: flex; gap: 10px; margin-bottom: 20px;">
     <input type="hidden" name="ruta" value="inventario">
     <input type="hidden" name="dept" value="<?php echo $_GET['dept'] ?? 1; ?>">
-    <input type="text" name="buscar" placeholder="🔍 Buscar producto o código..." 
+    <input type="text" name="buscar" placeholder="Buscar producto" 
            value="<?php echo htmlspecialchars($_GET['buscar'] ?? ''); ?>" style="flex: 1;">
     <button type="submit" class="btn-secundario">Buscar</button>
     <?php if (!empty($_GET['buscar'])): ?>
-        <a href="index.php?ruta=inventario&dept=<?php echo $_GET['dept'] ?? 1; ?>" class="btn-outline" style="padding: 10px;">✖ Limpiar</a>
+        <a href="index.php?ruta=inventario&dept=<?php echo $_GET['dept'] ?? 1; ?>" class="btn-outline" style="padding: 10px;">Limpiar</a>
     <?php endif; ?>
 </form>
 
@@ -58,7 +58,7 @@
                     
                     <td>
                         <a href="index.php?ruta=inventario_editar&id=<?php echo $producto['id_producto']; ?>" class="btn-editar" style="margin-right: 5px;">Editar</a>
-                        <a href="index.php?ruta=inventario_eliminar&id=<?php echo $producto['id_producto']; ?>" onclick="return confirm('¿Estás seguro de eliminar este producto?');" class="btn-eliminar">Eliminar</a>
+                        <a href="index.php?ruta=inventario_eliminar&id=<?php echo $producto['id_producto']; ?>&dept=<?php echo $_GET['dept'] ?? 1; ?>" onclick="return confirm('¿Estás seguro de eliminar este producto?');" class="btn-eliminar">Eliminar</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

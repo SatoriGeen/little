@@ -19,7 +19,7 @@
         <form method="GET" action="index.php" style="display: flex; gap: 10px; margin-bottom: 20px;">
             <input type="hidden" name="ruta" value="dashboard">
             <input type="hidden" name="dept" value="<?php echo $_GET['dept'] ?? 1; ?>">
-            <input type="text" name="buscar" placeholder="🔍 Buscar por nombre o código..." 
+            <input type="text" name="buscar" placeholder="Buscar por nombre" 
                    value="<?php echo htmlspecialchars($_GET['buscar'] ?? ''); ?>" style="flex: 1;">
             <button type="submit" class="btn-secundario">Buscar</button>
             <?php if (!empty($_GET['buscar'])): ?>

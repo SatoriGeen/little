@@ -73,6 +73,31 @@ switch ($ruta) {
         $uController->guardar();
         break;
 
+    // --- MÓDULO DE CONFIGURACIÓN Y CATÁLOGOS ---
+    case 'configuracion':
+        require_once 'controllers/ConfiguracionController.php';
+        $configController = new ConfiguracionController($conexion);
+        $configController->index();
+        break;
+        
+    case 'configuracion_guardar':
+        require_once 'controllers/ConfiguracionController.php';
+        $configController = new ConfiguracionController($conexion);
+        $configController->guardar();
+        break;
+        
+    case 'configuracion_eliminar':
+        require_once 'controllers/ConfiguracionController.php';
+        $configController = new ConfiguracionController($conexion);
+        $configController->eliminar();
+        break;
+
+    case 'reportes':
+        require_once 'controllers/ReportesController.php';
+        $reportes = new ReportesController($conexion);
+        $reportes->index();
+        break;
+
     case 'inventario_guardar':
         $inventario = new InventarioController($conexion);
         $inventario->guardar();

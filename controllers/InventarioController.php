@@ -18,10 +18,17 @@ class InventarioController {
 
     public function index() {
         $id_dept = $_GET['dept'] ?? 1;
+        $busqueda = trim($_GET['buscar'] ?? ''); 
         
-        $productos = $this->productoModel->obtenerTodos($id_dept);
-        
-        // NUEVO: Traemos todos los departamentos para dibujar las pestañas
+        // Configuración de Paginación
+        $pagina_actual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+        $limite = 15; // En inventario mostramos más por página
+        $offset = ($pagina_actual - 1) * $limite;
+
+        $total_productos = $this->productoModel->contarTodos($id_dept, $busqueda);
+        $total_paginas = ceil($total_productos / $limite);
+
+        $productos = $this->productoModel->obtenerTodos($id_dept, $busqueda, $limite, $offset);
         $departamentos = $this->productoModel->obtenerDepartamentos();
         
         require_once 'views/layouts/header.php';

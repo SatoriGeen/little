@@ -1,8 +1,6 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h2>Gestión de Usuarios</h2>
-    <a href="index.php?ruta=usuarios_crear" style="padding: 10px 15px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">
-        + Nuevo Usuario
-    </a>
+    <a href="index.php?ruta=usuarios_crear" class="btn-primario">+ Nuevo Usuario</a>
 </div>
 
 <table>

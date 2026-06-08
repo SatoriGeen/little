@@ -1,6 +1,4 @@
 <?php
-// models/Producto.php
-
 class Producto {
     private $conexion;
 
@@ -8,38 +6,78 @@ class Producto {
         $this->conexion = $db;
     }
 
-    public function obtenerTodos($id_departamento = null) {
-        // La consulta base
-        $query = "SELECT p.id_producto, p.nombre, p.precio, p.stock, m.nombre as marca 
+    public function contarTodos($id_departamento = null, $busqueda = null) {
+        $query = "SELECT COUNT(*) as total FROM productos p";
+        $condiciones = [];
+        $parametros = [];
+
+        if ($id_departamento !== null) {
+            $condiciones[] = "p.id_departamento = :id_dept";
+            $parametros[':id_dept'] = $id_departamento;
+        }
+        if (!empty($busqueda)) {
+            $condiciones[] = "(p.nombre LIKE :busqueda OR p.codigo_barras = :busqueda_exacta)";
+            $parametros[':busqueda'] = "%" . $busqueda . "%";
+            $parametros[':busqueda_exacta'] = $busqueda;
+        }
+
+        if (count($condiciones) > 0) {
+            $query .= " WHERE " . implode(" AND ", $condiciones);
+        }
+
+        $stmt = $this->conexion->prepare($query);
+        foreach ($parametros as $key => $valor) {
+            $stmt->bindValue($key, $valor);
+        }
+        $stmt->execute();
+        $res = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $res['total'] ?? 0;
+    }
+
+    public function obtenerTodos($id_departamento = null, $busqueda = null, $limite = 10, $offset = 0) {
+        $query = "SELECT p.id_producto, p.codigo_barras, p.nombre, p.precio, p.stock, m.nombre as marca 
                   FROM productos p 
                   LEFT JOIN marcas m ON p.id_marca = m.id_marca";
         
-        // Si nos piden un departamento en específico, filtramos con WHERE
+        $condiciones = [];
+        $parametros = [];
+
         if ($id_departamento !== null) {
-            $query .= " WHERE p.id_departamento = :id_dept";
+            $condiciones[] = "p.id_departamento = :id_dept";
+            $parametros[':id_dept'] = $id_departamento;
+        }
+        if (!empty($busqueda)) {
+            $condiciones[] = "(p.nombre LIKE :busqueda OR p.codigo_barras = :busqueda_exacta)";
+            $parametros[':busqueda'] = "%" . $busqueda . "%";
+            $parametros[':busqueda_exacta'] = $busqueda;
+        }
+
+        if (count($condiciones) > 0) {
+            $query .= " WHERE " . implode(" AND ", $condiciones);
         }
                   
+        $query .= " LIMIT :limite OFFSET :offset";
+        
         $stmt = $this->conexion->prepare($query);
         
-        // Si hay filtro, vinculamos la variable
-        if ($id_departamento !== null) {
-            $stmt->bindParam(':id_dept', $id_departamento);
+        foreach ($parametros as $key => $valor) {
+            $stmt->bindValue($key, $valor);
         }
+        
+        $stmt->bindValue(':limite', (int)$limite, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
         
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Obtiene un solo producto por su ID
     public function obtenerPorId($id) {
-        $query = "SELECT * FROM productos WHERE id_producto = :id";
-        $stmt = $this->conexion->prepare($query);
+        $stmt = $this->conexion->prepare("SELECT * FROM productos WHERE id_producto = :id");
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // ACTUALIZADO: Trae solo las marcas del departamento solicitado
     public function obtenerMarcas($id_departamento) {
         $stmt = $this->conexion->prepare("SELECT * FROM marcas WHERE id_departamento = :id_dept");
         $stmt->bindParam(':id_dept', $id_departamento);
@@ -47,7 +85,6 @@ class Producto {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // ACTUALIZADO: Trae solo las categorías del departamento solicitado
     public function obtenerCategorias($id_departamento) {
         $stmt = $this->conexion->prepare("SELECT * FROM categorias WHERE id_departamento = :id_dept");
         $stmt->bindParam(':id_dept', $id_departamento);
@@ -55,20 +92,18 @@ class Producto {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // NUEVA FUNCIÓN: Trae los departamentos
     public function obtenerDepartamentos() {
         $stmt = $this->conexion->prepare("SELECT * FROM departamentos");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // ALGORITMO ACTUALIZADO: Insertar con código de barras
     public function crear($codigo_barras, $nombre, $precio, $stock, $id_marca, $id_categoria, $id_departamento) {
         $query = "INSERT INTO productos (codigo_barras, nombre, precio, stock, id_marca, id_categoria, id_departamento) 
                   VALUES (:codigo_barras, :nombre, :precio, :stock, :id_marca, :id_categoria, :id_departamento)";
         $stmt = $this->conexion->prepare($query);
         return $stmt->execute([
-            ':codigo_barras' => $codigo_barras ?: null, // Lógica para respetar el NULL de MySQL
+            ':codigo_barras' => $codigo_barras ?: null,
             ':nombre' => $nombre,
             ':precio' => $precio,
             ':stock' => $stock,
@@ -78,7 +113,6 @@ class Producto {
         ]);
     }
 
-    // ALGORITMO ACTUALIZADO: Editar con código de barras
     public function actualizar($id, $codigo_barras, $nombre, $precio, $stock, $id_marca, $id_categoria, $id_departamento) {
         $query = "UPDATE productos SET codigo_barras = :codigo_barras, nombre = :nombre, precio = :precio, 
                   stock = :stock, id_marca = :id_marca, id_categoria = :id_categoria, id_departamento = :id_departamento 
@@ -96,16 +130,10 @@ class Producto {
         ]);
     }
 
-    // Algoritmo para eliminar un producto (¡Ojo con las relaciones!)
     public function eliminar($id) {
         try {
-            $query = "DELETE FROM productos WHERE id_producto = :id";
-            $stmt = $this->conexion->prepare($query);
+            $stmt = $this->conexion->prepare("DELETE FROM productos WHERE id_producto = :id");
             return $stmt->execute([':id' => $id]);
-        } catch (PDOException $e) {
-            // Si el producto ya se vendió en algún ticket, la base de datos (Llave Foránea) 
-            // no nos dejará borrarlo para proteger la integridad del ticket.
-            return false; 
-        }
+        } catch (PDOException $e) { return false; }
     }
 }

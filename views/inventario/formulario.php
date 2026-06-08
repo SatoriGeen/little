@@ -51,9 +51,7 @@
 
         <div style="text-align: right;">
             <a href="index.php?ruta=inventario" style="padding: 10px 15px; text-decoration: none; color: #333; margin-right: 10px;">Cancelar</a>
-            <button type="submit" style="padding: 10px 20px; background-color: #e91e63; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
-                Guardar Producto
-            </button>
+            <button type="submit" class="btn-primario">Guardar Producto</button>
         </div>
 
     </form>

@@ -20,9 +20,7 @@
                 <option value="admin">Administrador</option>
             </select>
         </div>
-        <button type="submit" style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
-            Guardar Usuario
-        </button>
+        <button type="submit" class="btn-primario">Guardar Usuario</button>
         <a href="index.php?ruta=usuarios" style="margin-left: 10px; color: #666;">Cancelar</a>
     </form>
 </div>

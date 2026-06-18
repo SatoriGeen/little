@@ -1,138 +1,174 @@
 <?php
 // controllers/VentasController.php
 
-class VentasController {
-    private $db;
+require_once __DIR__ . '/../models/Producto.php';
+require_once __DIR__ . '/../helpers/config.php';
 
-    // Ahora recibimos la conexión a la BD
-    public function __construct($conexion) {
+class VentasController {
+    private PDO $db;
+
+    public function __construct(PDO $conexion) {
         $this->db = $conexion;
     }
 
-    public function agregarAlCarrito() {
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $id = $_POST['id_producto'];
-            $nombre = $_POST['nombre'];
-            $precio = $_POST['precio'];
-            $cantidad = floatval($_POST['cantidad']);
-            
-            // CAPTURAMOS EL DEPARTAMENTO QUE VIENE DEL FORMULARIO
-            $id_dept = $_POST['id_departamento'] ?? 1;
-
-            if (!isset($_SESSION['carrito'])) {
-                $_SESSION['carrito'] = [];
-            }
-
-            if (isset($_SESSION['carrito'][$id])) {
-                $_SESSION['carrito'][$id]['cantidad'] += $cantidad;
-            } else {
-                $_SESSION['carrito'][$id] = [
-                    'nombre' => $nombre,
-                    'precio' => $precio,
-                    'cantidad' => $cantidad
-                ];
-            }
-            
-            // REDIRECCIONAMOS CON EL DEPARTAMENTO QUE VENÍA
-            header("Location: index.php?ruta=dashboard&dept=" . $id_dept);
-            exit();
+    /**
+     * Agrega un producto al carrito.
+     * SEC-09: El precio se consulta de la BD, no del formulario.
+     */
+    public function agregarAlCarrito(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: index.php?ruta=dashboard"); exit();
         }
+
+        $id_producto = (int) ($_POST['id_producto'] ?? 0);
+        $cantidad    = max(0.01, (float) ($_POST['cantidad'] ?? 1));
+        $id_dept     = (int) ($_POST['id_departamento'] ?? 1);
+
+        if ($id_producto <= 0) {
+            header("Location: index.php?ruta=dashboard&dept=$id_dept"); exit();
+        }
+
+        $productoModel = new Producto($this->db);
+        $producto = $productoModel->obtenerPorId($id_producto);
+
+        if (!$producto) {
+            header("Location: index.php?ruta=dashboard&dept=$id_dept"); exit();
+        }
+
+        if (!isset($_SESSION['carrito'])) {
+            $_SESSION['carrito'] = [];
+        }
+
+        if (isset($_SESSION['carrito'][$id_producto])) {
+            $_SESSION['carrito'][$id_producto]['cantidad'] += $cantidad;
+        } else {
+            $_SESSION['carrito'][$id_producto] = [
+                'nombre'   => $producto['nombre'],
+                'precio'   => (float) $producto['precio'], // ← precio de BD, no del POST
+                'cantidad' => $cantidad,
+            ];
+        }
+
+        header("Location: index.php?ruta=dashboard&dept=$id_dept");
+        exit();
     }
 
-    public function vaciarCarrito() {
+    public function vaciarCarrito(): void {
         unset($_SESSION['carrito']);
         header("Location: index.php?ruta=dashboard");
         exit();
     }
 
-    public function eliminarItem() {
-        $id = $_GET['id'] ?? 0;
-        // Capturamos el departamento actual para regresar al mismo sitio
-        $id_dept = $_GET['dept'] ?? 1;
+    /** SEC-04: eliminarItem usa POST (el token CSRF ya fue validado en index.php). */
+    public function eliminarItem(): void {
+        $id      = (int) ($_POST['id']   ?? 0);
+        $id_dept = (int) ($_POST['dept'] ?? 1);
 
         if (isset($_SESSION['carrito'][$id])) {
             unset($_SESSION['carrito'][$id]);
         }
-        
-        // Redirigimos al dashboard manteniendo la pestaña seleccionada
-        header("Location: index.php?ruta=dashboard&dept=" . $id_dept);
+
+        header("Location: index.php?ruta=dashboard&dept=$id_dept");
         exit();
     }
 
-    // EL ALGORITMO TRANSACCIONAL
-    public function cobrarTicket() {
+    /**
+     * Procesa el cobro del ticket en una transacción atómica.
+     *
+     * NUEVO: acepta metodo_pago ('efectivo'|'tarjeta') y calcula
+     * la comisión bancaria según la constante COMISION_TARJETA.
+     * total_neto = total - comision  → es la ganancia real del negocio.
+     */
+    public function cobrarTicket(): void {
         if (empty($_SESSION['carrito'])) {
-            header("Location: index.php?ruta=dashboard");
-            exit();
+            header("Location: index.php?ruta=dashboard"); exit();
+        }
+        if (!isset($_SESSION['id_usuario'])) {
+            header("Location: index.php?ruta=login"); exit();
         }
 
-        // 1. Calcular el total del ticket
-        $total = 0;
+        // Método de pago (validado con whitelist)
+        $metodo_pago_raw = $_POST['metodo_pago'] ?? 'efectivo';
+        $metodo_pago = in_array($metodo_pago_raw, ['efectivo', 'tarjeta'], true)
+            ? $metodo_pago_raw : 'efectivo';
+
+        // Calcular totales
+        $total = 0.0;
         foreach ($_SESSION['carrito'] as $item) {
-            $total += ($item['precio'] * $item['cantidad']);
+            $total += $item['precio'] * $item['cantidad'];
         }
-        
-        $id_usuario = $_SESSION['id_usuario']; // El cajero que cobra
+
+        $tasa_comision = ($metodo_pago === 'tarjeta')
+            ? (defined('COMISION_TARJETA') ? COMISION_TARJETA : 0.025)
+            : 0.0;
+        $comision   = round($total * $tasa_comision, 2);
+        $total_neto = round($total - $comision, 2);
+        $id_usuario = (int) $_SESSION['id_usuario'];
 
         try {
-            // 2. INICIAR LA TRANSACCIÓN: A partir de aquí, nada es definitivo hasta hacer COMMIT
             $this->db->beginTransaction();
 
-            // 3. Insertar el ticket general en la tabla 'ventas'
-            $queryVenta = "INSERT INTO ventas (id_usuario, total) VALUES (:id_usuario, :total)";
-            $stmtVenta = $this->db->prepare($queryVenta);
-            $stmtVenta->execute([':id_usuario' => $id_usuario, ':total' => $total]);
-            
-            // Obtenemos el ID de este ticket recién creado
-            $id_venta = $this->db->lastInsertId();
+            // Insertar cabecera de venta con método de pago
+            $stmtVenta = $this->db->prepare(
+                "INSERT INTO ventas (id_usuario, total, metodo_pago, comision, total_neto)
+                 VALUES (:id_usuario, :total, :metodo_pago, :comision, :total_neto)"
+            );
+            $stmtVenta->execute([
+                ':id_usuario'  => $id_usuario,
+                ':total'       => $total,
+                ':metodo_pago' => $metodo_pago,
+                ':comision'    => $comision,
+                ':total_neto'  => $total_neto,
+            ]);
+            $id_venta = (int) $this->db->lastInsertId();
 
-            // 4. Recorrer el carrito para guardar detalles y descontar stock
-            $queryDetalle = "INSERT INTO detalle_ventas (id_venta, id_producto, cantidad, precio_unitario, subtotal) 
-                             VALUES (:id_venta, :id_producto, :cantidad, :precio, :subtotal)";
-            $stmtDetalle = $this->db->prepare($queryDetalle);
-
-            $queryStock = "UPDATE productos SET stock = stock - :cantidad WHERE id_producto = :id_producto AND stock >= :cantidad";
-            $stmtStock = $this->db->prepare($queryStock);
+            $stmtDetalle = $this->db->prepare(
+                "INSERT INTO detalle_ventas (id_venta, id_producto, cantidad, precio_unitario, subtotal)
+                 VALUES (:id_venta, :id_producto, :cantidad, :precio, :subtotal)"
+            );
+            $stmtStock = $this->db->prepare(
+                "UPDATE productos SET stock = stock - :cantidad
+                 WHERE id_producto = :id_producto AND stock >= :cantidad"
+            );
 
             foreach ($_SESSION['carrito'] as $id_producto => $item) {
                 $subtotal = $item['precio'] * $item['cantidad'];
-                
-                // Guardar detalle
+
                 $stmtDetalle->execute([
-                    ':id_venta' => $id_venta,
+                    ':id_venta'    => $id_venta,
                     ':id_producto' => $id_producto,
-                    ':cantidad' => $item['cantidad'],
-                    ':precio' => $item['precio'],
-                    ':subtotal' => $subtotal
+                    ':cantidad'    => $item['cantidad'],
+                    ':precio'      => $item['precio'],
+                    ':subtotal'    => $subtotal,
                 ]);
 
-                // Descontar inventario
                 $stmtStock->execute([
-                    ':cantidad' => $item['cantidad'],
-                    ':id_producto' => $id_producto
+                    ':cantidad'    => $item['cantidad'],
+                    ':id_producto' => $id_producto,
                 ]);
 
-                // Validar que realmente se haya descontado (que no se vendiera más de lo que hay)
-                if ($stmtStock->rowCount() == 0) {
-                    throw new Exception("Stock insuficiente para el producto: " . $item['nombre']);
+                if ($stmtStock->rowCount() === 0) {
+                    throw new Exception("Stock insuficiente para: " . htmlspecialchars($item['nombre']));
                 }
             }
 
-            // 5. SI TODO SALIÓ PERFECTO, GUARDAMOS DEFINITIVAMENTE (COMMIT)
             $this->db->commit();
-            
-            // Vaciamos el carrito porque ya se cobró
             unset($_SESSION['carrito']);
-            
-            // Podríamos mandar un mensaje de éxito, por ahora redirigimos
-            header("Location: index.php?ruta=dashboard");
-            exit();
+
+            $icono = $metodo_pago === 'tarjeta' ? '💳' : '💵';
+            $mensaje = "{$icono} Venta #{$id_venta} procesada. Total: $" . number_format($total, 2);
+            if ($metodo_pago === 'tarjeta') {
+                $mensaje .= " | Comisión: -$" . number_format($comision, 2) . " | Neto: $" . number_format($total_neto, 2);
+            }
+            $_SESSION['mensaje'] = $mensaje;
+            $_SESSION['tipo']    = 'exito';
+            header("Location: index.php?ruta=dashboard"); exit();
 
         } catch (Exception $e) {
-            // 6. SI HUBO UN ERROR, CANCELAMOS TODO (ROLLBACK) PARA MANTENER LA INTEGRIDAD
             $this->db->rollBack();
-            // Para depurar, mostraremos el error. En producción esto se mejora.
-            die("Error en la transacción: " . $e->getMessage());
+            $_SESSION['mensaje'] = "Error al procesar la venta: " . htmlspecialchars($e->getMessage());
+            $_SESSION['tipo']    = 'error';
+            header("Location: index.php?ruta=dashboard"); exit();
         }
     }
 }

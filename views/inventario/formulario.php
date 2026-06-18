@@ -18,34 +18,36 @@
         <p>Complete los detalles técnicos y comerciales del producto para el inventario.</p>
     </div>
 
-    <form action="index.php?ruta=<?php echo $accion; ?>" method="POST">
+    <!-- SEC-03 FIX: Token CSRF + BUG-04 FIX: htmlspecialchars() en el atributo action -->
+    <form action="index.php?ruta=<?php echo htmlspecialchars($accion, ENT_QUOTES, 'UTF-8'); ?>" method="POST">
+        <?php echo csrf_field(); ?>
         <div class="form-grid">
             
             <div class="form-group full-width">
                 <label class="form-label">Nombre del Producto *</label>
                 <input type="text" name="nombre" class="form-input" required 
-                       value="<?php echo htmlspecialchars($producto['nombre'] ?? ''); ?>" 
+                       value="<?php echo htmlspecialchars($producto['nombre'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" 
                        placeholder="Ej. Refresco Coca-Cola 600ml">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Código de Barras</label>
                 <input type="text" name="codigo_barras" class="form-input" 
-                       value="<?php echo htmlspecialchars($producto['codigo_barras'] ?? ''); ?>" 
+                       value="<?php echo htmlspecialchars($producto['codigo_barras'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" 
                        placeholder="Escanea o escribe el código">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Precio Público ($) *</label>
-                <input type="number" step="0.01" name="precio" class="form-input" required 
-                       value="<?php echo $producto['precio'] ?? ''; ?>" 
+                <input type="number" step="0.01" min="0" name="precio" class="form-input" required 
+                       value="<?php echo htmlspecialchars($producto['precio'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" 
                        placeholder="0.00">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Stock Actual *</label>
-                <input type="number" step="0.01" name="stock" class="form-input" required 
-                       value="<?php echo $producto['stock'] ?? ''; ?>" 
+                <input type="number" step="0.01" min="0" name="stock" class="form-input" required 
+                       value="<?php echo htmlspecialchars($producto['stock'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" 
                        placeholder="Cantidad disponible">
             </div>
 
@@ -53,9 +55,9 @@
                 <label class="form-label">Departamento *</label>
                 <select name="id_departamento" class="form-input" required>
                     <?php foreach ($departamentos as $d): ?>
-                        <option value="<?php echo $d['id_departamento']; ?>" 
+                        <option value="<?php echo (int) $d['id_departamento']; ?>" 
                             <?php echo (($producto['id_departamento'] ?? $_GET['dept'] ?? 1) == $d['id_departamento']) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($d['nombre']); ?>
+                            <?php echo htmlspecialchars($d['nombre'], ENT_QUOTES, 'UTF-8'); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -66,9 +68,9 @@
                 <select name="id_marca" class="form-input">
                     <option value="">-- Sin Marca --</option>
                     <?php foreach ($marcas as $m): ?>
-                        <option value="<?php echo $m['id_marca']; ?>" 
+                        <option value="<?php echo (int) $m['id_marca']; ?>" 
                             <?php echo (($producto['id_marca'] ?? '') == $m['id_marca']) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($m['nombre']); ?>
+                            <?php echo htmlspecialchars($m['nombre'], ENT_QUOTES, 'UTF-8'); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -79,9 +81,9 @@
                 <select name="id_categoria" class="form-input">
                     <option value="">-- Sin Categoría --</option>
                     <?php foreach ($categorias as $c): ?>
-                        <option value="<?php echo $c['id_categoria']; ?>" 
+                        <option value="<?php echo (int) $c['id_categoria']; ?>" 
                             <?php echo (($producto['id_categoria'] ?? '') == $c['id_categoria']) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($c['nombre']); ?>
+                            <?php echo htmlspecialchars($c['nombre'], ENT_QUOTES, 'UTF-8'); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -90,7 +92,7 @@
         </div>
 
         <div class="form-actions">
-            <a href="index.php?ruta=inventario&dept=<?php echo $_GET['dept'] ?? 1; ?>" class="btn-outline" style="padding: 12px 20px; font-size: 14px;">Cancelar</a>
+            <a href="index.php?ruta=inventario&amp;dept=<?php echo (int) ($_GET['dept'] ?? 1); ?>" class="btn-outline" style="padding: 12px 20px; font-size: 14px;">Cancelar</a>
             <button type="submit" class="btn-primario" style="padding: 12px 25px; font-size: 14px;">Guardar Producto</button>
         </div>
     </form>

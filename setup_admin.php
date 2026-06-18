@@ -1,33 +1,14 @@
 <?php
-// setup_admin.php (Archivo temporal para crear al primer usuario)
+// setup_admin.php
+// ============================================================
+// SEC-02 FIX: Este script fue deshabilitado por seguridad.
+// Fue creado para generar el primer usuario administrador y
+// NO debe estar accesible públicamente en producción.
+//
+// Si necesitas crear un usuario admin, hazlo directamente
+// desde la consola de MySQL o mediante un script de CLI
+// protegido por contraseña fuera del document root de Apache.
+// ============================================================
 
-require_once 'config/database.php';
-
-$database = new Database();
-$conexion = $database->conectar();
-
-// Los datos de nuestro primer administrador
-$nombre = "Administrador Principal";
-$email = "admin@pos.com";
-$password_plana = "admin123"; 
-
-// Aquí aplicamos el algoritmo de encriptación bcrypt (nativo de PHP)
-$password_hash = password_hash($password_plana, PASSWORD_DEFAULT);
-
-try {
-    $query = "INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (:nombre, :email, :password_hash, 'admin')";
-    $stmt = $conexion->prepare($query);
-    $stmt->bindParam(':nombre', $nombre);
-    $stmt->bindParam(':email', $email);
-    $stmt->bindParam(':password_hash', $password_hash);
-    
-    if ($stmt->execute()) {
-        echo "Usuario administrador creado con éxito.<br>";
-        echo "Email: " . $email . "<br>";
-        echo "Contraseña: " . $password_plana . "<br>";
-        echo "<br>Hash guardado en BD: " . $password_hash . "<br>";
-        echo "<br><a href='index.php'>Ir al Login</a>";
-    }
-} catch(PDOException $e) {
-    echo "Error (probablemente el usuario ya existe): " . $e->getMessage();
-}
+http_response_code(403);
+die('⛔ Acceso denegado. Este script ha sido deshabilitado.');

@@ -1,37 +1,44 @@
 <?php
-require_once 'models/Producto.php';
+// controllers/DashboardController.php
+
+require_once __DIR__ . '/../models/Producto.php';
+require_once __DIR__ . '/../helpers/config.php';
 
 class DashboardController {
-    private $db;
+    private PDO $db;
 
-    public function __construct($conexion) {
+    public function __construct(PDO $conexion) {
         $this->db = $conexion;
+
+        if (!isset($_SESSION['id_usuario'])) {
+            header("Location: index.php?ruta=login"); exit();
+        }
     }
 
-    public function index() {
-        if (!isset($_SESSION['id_usuario'])) {
-            header("Location: index.php?ruta=login");
-            exit();
-        }
+    public function index(): void {
+        $id_dept  = (int) ($_GET['dept'] ?? 1);
+        $busqueda = trim($_GET['buscar'] ?? '');
 
-        $id_dept = $_GET['dept'] ?? 1;
-        $busqueda = trim($_GET['buscar'] ?? ''); 
-        
-        // Configuración de Paginación
-        $pagina_actual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-        $limite = 8; // Productos por página en Ventas
+        $pagina_actual = max(1, (int) ($_GET['pagina'] ?? 1));
+        $limite = defined('PRODUCTOS_POR_PAGINA_VENTAS') ? PRODUCTOS_POR_PAGINA_VENTAS : 8;
         $offset = ($pagina_actual - 1) * $limite;
 
         $productoModel = new Producto($this->db);
-        
-        $total_productos = $productoModel->contarTodos($id_dept, $busqueda);
-        $total_paginas = ceil($total_productos / $limite);
 
-        $productos = $productoModel->obtenerTodos($id_dept, $busqueda, $limite, $offset); 
+        $total_productos = $productoModel->contarTodos($id_dept, $busqueda);
+        $total_paginas   = (int) ceil($total_productos / $limite);
+
+        $productos     = $productoModel->obtenerTodos($id_dept, $busqueda, $limite, $offset);
         $departamentos = $productoModel->obtenerDepartamentos();
 
-        require_once 'views/layouts/header.php';
-        require_once 'views/dashboard.php';
-        require_once 'views/layouts/footer.php';
+        // NUEVO: Resumen global de stock para el widget de alertas del ticket panel
+        $resumen_stock = $productoModel->resumenStock(); // sin filtro de depto para vista global
+
+        // Tasa de comisión para el selector de método de pago (JS la usa)
+        $comision_tarjeta = defined('COMISION_TARJETA') ? COMISION_TARJETA : 0.025;
+
+        require_once __DIR__ . '/../views/layouts/header.php';
+        require_once __DIR__ . '/../views/dashboard.php';
+        require_once __DIR__ . '/../views/layouts/footer.php';
     }
 }

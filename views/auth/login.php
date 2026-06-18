@@ -135,10 +135,13 @@
         </div>
         
         <?php if(isset($error)): ?>
-            <div class="error">⚠️<?php echo htmlspecialchars($error); ?></div>
+            <!-- SEC-06 FIX: htmlspecialchars() en el mensaje de error -->
+            <div class="error">⚠️<?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
         <?php endif; ?>
 
+        <!-- SEC-03 FIX: Token CSRF en el formulario de login -->
         <form action="index.php?ruta=login" method="POST">
+            <?php echo csrf_field(); ?>
             <div class="form-group">
                 <label for="email">Usuario / Correo</label>
                 <input type="email" id="email" name="email" required autocomplete="email" placeholder="admin@pos.com">

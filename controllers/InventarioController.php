@@ -1,120 +1,143 @@
 <?php
 // controllers/InventarioController.php
 
-require_once 'models/Producto.php';
+require_once __DIR__ . '/../models/Producto.php';
+require_once __DIR__ . '/../helpers/config.php';
 
 class InventarioController {
-    private $db;
-    private $productoModel;
+    private PDO $db;
+    private Producto $productoModel;
 
-    public function __construct($conexion) {
-        $this->db = $conexion;
+    public function __construct(PDO $conexion) {
+        $this->db            = $conexion;
         $this->productoModel = new Producto($this->db);
+
         if (!isset($_SESSION['id_usuario'])) {
-            header("Location: index.php?ruta=login");
-            exit();
+            header("Location: index.php?ruta=login"); exit();
         }
     }
 
-    public function index() {
-        $id_dept = $_GET['dept'] ?? 1;
-        $busqueda = trim($_GET['buscar'] ?? ''); 
-        
-        // Configuración de Paginación
-        $pagina_actual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-        $limite = 15; // En inventario mostramos más por página
-        $offset = ($pagina_actual - 1) * $limite;
+    public function index(): void {
+        $id_dept      = (int) ($_GET['dept'] ?? 1);
+        $busqueda     = trim($_GET['buscar'] ?? '');
 
-        $total_productos = $this->productoModel->contarTodos($id_dept, $busqueda);
-        $total_paginas = ceil($total_productos / $limite);
+        // NUEVO: Filtro por nivel de stock
+        $filtros_validos = ['todos', 'sin_stock', 'critico', 'bajo', 'surtir', 'normal'];
+        $filtro_stock = in_array($_GET['stock'] ?? '', $filtros_validos, true)
+            ? ($_GET['stock'] ?? 'todos')
+            : 'todos';
+        $filtro_stock_param = ($filtro_stock === 'todos') ? null : $filtro_stock;
 
-        $productos = $this->productoModel->obtenerTodos($id_dept, $busqueda, $limite, $offset);
+        $pagina_actual  = max(1, (int) ($_GET['pagina'] ?? 1));
+        $limite  = defined('PRODUCTOS_POR_PAGINA_INVENTARIO') ? PRODUCTOS_POR_PAGINA_INVENTARIO : 15;
+        $offset  = ($pagina_actual - 1) * $limite;
+
+        $total_productos = $this->productoModel->contarTodos($id_dept, $busqueda, $filtro_stock_param);
+        $total_paginas   = (int) ceil($total_productos / $limite);
+
+        $productos    = $this->productoModel->obtenerTodos($id_dept, $busqueda, $limite, $offset, $filtro_stock_param);
         $departamentos = $this->productoModel->obtenerDepartamentos();
-        
-        require_once 'views/layouts/header.php';
-        require_once 'views/inventario/index.php';
-        require_once 'views/layouts/footer.php';
+
+        // NUEVO: Resumen de niveles de stock para los botones de filtro
+        $resumen_stock = $this->productoModel->resumenStock($id_dept);
+
+        require_once __DIR__ . '/../views/layouts/header.php';
+        require_once __DIR__ . '/../views/inventario/index.php';
+        require_once __DIR__ . '/../views/layouts/footer.php';
     }
 
-    public function crear() {
-        // Leemos de la URL en qué pestaña está (1 = Maquillaje, 2 = Snacks)
-        $id_dept = $_GET['dept'] ?? 1; 
+    public function crear(): void {
+        $id_dept = (int) ($_GET['dept'] ?? 1);
 
-        // Ahora le pasamos ese ID a nuestro Modelo para que filtre
-        $marcas = $this->productoModel->obtenerMarcas($id_dept);
-        $categorias = $this->productoModel->obtenerCategorias($id_dept);
+        $marcas       = $this->productoModel->obtenerMarcas($id_dept);
+        $categorias   = $this->productoModel->obtenerCategorias($id_dept);
         $departamentos = $this->productoModel->obtenerDepartamentos();
-        
-        $accion = 'inventario_guardar';
+
+        $accion   = 'inventario_guardar';
         $producto = null;
-        
-        require_once 'views/layouts/header.php';
-        require_once 'views/inventario/formulario.php';
-        require_once 'views/layouts/footer.php';
+
+        require_once __DIR__ . '/../views/layouts/header.php';
+        require_once __DIR__ . '/../views/inventario/formulario.php';
+        require_once __DIR__ . '/../views/layouts/footer.php';
     }
 
-    public function editar() {
-        $id = $_GET['id'] ?? 0;
+    public function editar(): void {
+        $id      = (int) ($_GET['id'] ?? 0);
         $producto = $this->productoModel->obtenerPorId($id);
+
         if (!$producto) {
-            header("Location: index.php?ruta=inventario");
-            exit();
+            header("Location: index.php?ruta=inventario"); exit();
         }
 
-        // Si estamos editando, el departamento lo dicta el producto guardado
-        $id_dept = $producto['id_departamento']; 
-        
-        $marcas = $this->productoModel->obtenerMarcas($id_dept);
-        $categorias = $this->productoModel->obtenerCategorias($id_dept);
+        $id_dept = (int) $producto['id_departamento'];
+
+        $marcas       = $this->productoModel->obtenerMarcas($id_dept);
+        $categorias   = $this->productoModel->obtenerCategorias($id_dept);
         $departamentos = $this->productoModel->obtenerDepartamentos();
-        
+
         $accion = 'inventario_guardar&id=' . $id;
-        
-        require_once 'views/layouts/header.php';
-        require_once 'views/inventario/formulario.php';
-        require_once 'views/layouts/footer.php';
+
+        require_once __DIR__ . '/../views/layouts/header.php';
+        require_once __DIR__ . '/../views/inventario/formulario.php';
+        require_once __DIR__ . '/../views/layouts/footer.php';
     }
 
-    public function guardar() {
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            // 1. Capturamos todas las variables del formulario
-            $codigo_barras = trim($_POST['codigo_barras'] ?? '');
-            $nombre = $_POST['nombre'];
-            $precio = $_POST['precio'];
-            $stock = $_POST['stock'];
-            $id_marca = $_POST['id_marca'];
-            $id_categoria = $_POST['id_categoria'];
-            $id_departamento = $_POST['id_departamento'];
-            
-            // 2. Obtenemos el ID de la URL si es edición
-            $id = $_GET['id'] ?? null;
-
-            // 3. Ejecutamos la lógica según si es nuevo o edición
-            if ($id) {
-                $this->productoModel->actualizar($id, $codigo_barras, $nombre, $precio, $stock, $id_marca, $id_categoria, $id_departamento);
-                $_SESSION['mensaje'] = "Producto actualizado correctamente.";
-                $_SESSION['tipo'] = 'exito';
-            } else {
-                $this->productoModel->crear($codigo_barras, $nombre, $precio, $stock, $id_marca, $id_categoria, $id_departamento);
-                $_SESSION['mensaje'] = "Producto agregado al inventario.";
-                $_SESSION['tipo'] = 'exito';
-            }
+    public function guardar(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: index.php?ruta=inventario"); exit();
         }
-        
-        // 4. Redirigimos usando el ID del departamento capturado
-        $id_dept = $_POST['id_departamento'] ?? 1;
-        header("Location: index.php?ruta=inventario&dept=" . $id_dept);
+
+        $codigo_barras   = trim($_POST['codigo_barras']  ?? '');
+        $nombre          = trim($_POST['nombre']          ?? '');
+        $precio          = (float) ($_POST['precio']      ?? 0);
+        $stock           = (float) ($_POST['stock']       ?? 0);
+        $id_marca        = !empty($_POST['id_marca'])        ? (int) $_POST['id_marca']        : null;
+        $id_categoria    = !empty($_POST['id_categoria'])    ? (int) $_POST['id_categoria']    : null;
+        $id_departamento = (int) ($_POST['id_departamento'] ?? 0);
+
+        $errores = [];
+        if (empty($nombre))         $errores[] = "El nombre es obligatorio.";
+        if ($precio < 0)            $errores[] = "El precio no puede ser negativo.";
+        if ($stock < 0)             $errores[] = "El stock no puede ser negativo.";
+        if ($id_departamento <= 0)  $errores[] = "Selecciona un departamento.";
+
+        if (!empty($errores)) {
+            $_SESSION['mensaje'] = implode(' ', $errores);
+            $_SESSION['tipo']    = 'error';
+            header("Location: index.php?ruta=inventario&dept=" . $id_departamento); exit();
+        }
+
+        $id = !empty($_GET['id']) ? (int) $_GET['id'] : null;
+
+        if ($id) {
+            $ok = $this->productoModel->actualizar(
+                $id, $codigo_barras, $nombre, $precio, $stock,
+                $id_marca, $id_categoria, $id_departamento
+            );
+            $_SESSION['mensaje'] = $ok ? "Producto actualizado correctamente." : "Error al actualizar.";
+        } else {
+            $ok = $this->productoModel->crear(
+                $codigo_barras, $nombre, $precio, $stock,
+                $id_marca, $id_categoria, $id_departamento
+            );
+            $_SESSION['mensaje'] = $ok ? "Producto agregado al inventario." : "Error al agregar.";
+        }
+
+        $_SESSION['tipo'] = $ok ? 'exito' : 'error';
+        header("Location: index.php?ruta=inventario&dept=" . $id_departamento);
         exit();
     }
 
-    public function eliminar() {
-        $id = $_GET['id'] ?? 0;
-        // Para regresar a la misma pestaña después de eliminar, leemos de dónde venía
-        $dept = $_GET['dept'] ?? 1; 
-        
-        if ($id) {
-            $this->productoModel->eliminar($id);
+    public function eliminar(): void {
+        $id   = (int) ($_POST['id']   ?? 0);
+        $dept = (int) ($_POST['dept'] ?? 1);
+
+        if ($id > 0) {
+            $ok = $this->productoModel->eliminar($id);
+            $_SESSION['mensaje'] = $ok ? "Producto eliminado." : "No se pudo eliminar (puede estar en uso).";
+            $_SESSION['tipo']    = $ok ? 'exito' : 'error';
         }
+
         header("Location: index.php?ruta=inventario&dept=" . $dept);
         exit();
     }

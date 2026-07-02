@@ -31,7 +31,9 @@ class DevolucionController {
         $detalle = [];
         $error   = null;
 
-        $folio = isset($_GET['folio']) ? (int) $_GET['folio'] : null;
+        $folio  = isset($_GET['folio']) ? (int) $_GET['folio'] : null;
+        $buscar = trim($_GET['buscar'] ?? '');
+        $ventas_recientes = [];
 
         if ($folio && $folio > 0) {
             $venta = $this->model->buscarVentaPorId($folio);
@@ -43,6 +45,9 @@ class DevolucionController {
             } else {
                 $error = "No se encontró ninguna venta con el folio #" . str_pad($folio, 5, '0', STR_PAD_LEFT) . ".";
             }
+        } else {
+            // Si no hay folio exacto, buscar en recientes (soporta filtro avanzado)
+            $ventas_recientes = $this->model->buscarVentasRecientes($buscar, 20);
         }
 
         // Historial reciente de devoluciones

@@ -168,6 +168,52 @@ class Devolucion {
     }
 
     /**
+     * Obtiene las ventas recientes para el panel rápido de devoluciones.
+     * Soporta búsqueda avanzada por Folio o por Nombre/Código de Producto.
+     */
+    public function buscarVentasRecientes(?string $busqueda = null, int $limite = 20): array {
+        $query = "SELECT v.id_venta, v.total, v.metodo_pago, v.fecha, u.nombre as cajero,
+                         (SELECT GROUP_CONCAT(CONCAT(p.nombre, ' (x', ROUND(dv.cantidad, 2), ')') SEPARATOR ', ')
+                          FROM detalle_ventas dv
+                          JOIN productos p ON dv.id_producto = p.id_producto
+                          WHERE dv.id_venta = v.id_venta) as resumen_productos
+                  FROM ventas v
+                  JOIN usuarios u ON v.id_usuario = u.id_usuario";
+
+        $parametros = [];
+
+        if (!empty($busqueda)) {
+            $query .= " WHERE ";
+            if (is_numeric($busqueda)) {
+                $query .= "(v.id_venta = :busqueda_id OR EXISTS (
+                                SELECT 1 FROM detalle_ventas dv2
+                                JOIN productos p2 ON dv2.id_producto = p2.id_producto
+                                WHERE dv2.id_venta = v.id_venta AND p2.codigo_barras = :busqueda_exacta
+                           ))";
+                $parametros[':busqueda_id'] = (int) $busqueda;
+                $parametros[':busqueda_exacta'] = $busqueda;
+            } else {
+                $query .= "EXISTS (
+                                SELECT 1 FROM detalle_ventas dv2
+                                JOIN productos p2 ON dv2.id_producto = p2.id_producto
+                                WHERE dv2.id_venta = v.id_venta AND p2.nombre LIKE :busqueda_nombre
+                           )";
+                $parametros[':busqueda_nombre'] = '%' . $busqueda . '%';
+            }
+        }
+
+        $query .= " ORDER BY v.fecha DESC LIMIT :limite";
+
+        $stmt = $this->conexion->prepare($query);
+        foreach ($parametros as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
+        $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Historial de todas las devoluciones (para reportes).
      */
     public function obtenerHistorial(int $limite = 20, int $offset = 0): array {

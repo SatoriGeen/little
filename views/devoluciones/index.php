@@ -27,26 +27,65 @@
     </div>
 </div>
 
-<!-- BUSCADOR DE FOLIO -->
+<!-- BUSCADOR DE FOLIO O PRODUCTO -->
 <div class="dev-search-box">
-    <form method="GET" action="index.php" style="display:flex;gap:12px;align-items:flex-end;">
+    <form method="GET" action="index.php" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
         <input type="hidden" name="ruta" value="devoluciones">
-        <div style="flex:1;">
+        <div style="flex:1;min-width:250px;">
             <label style="display:block;font-size:0.8rem;font-weight:bold;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;color:var(--gris-oscuro);">
-                Número de Folio / ID de Venta
+                Buscar por Folio o Nombre de Producto
             </label>
-            <input type="number" name="folio" id="folio" min="1" placeholder="Ej. 000042"
-                   value="<?php echo (int)($_GET['folio'] ?? 0) ?: ''; ?>"
-                   style="width:100%;font-size:1.1rem;padding:12px;">
+            <input type="text" name="buscar" id="buscar" placeholder="Ej. 42, Coca Cola, Sabritas..."
+                   value="<?php echo htmlspecialchars($_GET['buscar'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                   style="width:100%;font-size:1.1rem;padding:12px;" autofocus>
         </div>
         <button type="submit" class="btn-secundario" style="padding:12px 24px;height:50px;">
-            🔍 Buscar Venta
+            🔍 Buscar
         </button>
-        <?php if (!empty($_GET['folio'])): ?>
+        <?php if (!empty($_GET['folio']) || !empty($_GET['buscar'])): ?>
             <a href="index.php?ruta=devoluciones" class="btn-outline" style="padding:12px;height:50px;display:flex;align-items:center;">✖</a>
         <?php endif; ?>
     </form>
 </div>
+
+<!-- LISTA DE VENTAS RECIENTES (Si no hay una venta específica seleccionada) -->
+<?php if (empty($venta) && isset($ventas_recientes)): ?>
+    <h3 style="color:var(--gris-oscuro);margin-bottom:15px;margin-top:0;">🛍️ Últimas Ventas <?php echo !empty($_GET['buscar']) ? '(Resultados de búsqueda)' : ''; ?></h3>
+    <?php if (empty($ventas_recientes)): ?>
+        <p style="color:#64748B;">No se encontraron ventas recientes.</p>
+    <?php else: ?>
+        <table style="margin-bottom: 30px;">
+            <thead>
+                <tr>
+                    <th>Folio</th>
+                    <th>Fecha y Hora</th>
+                    <th>Cajero</th>
+                    <th>Artículos (Resumen)</th>
+                    <th>Total</th>
+                    <th style="text-align:center;">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($ventas_recientes as $vr): ?>
+                    <tr>
+                        <td style="font-weight:bold;color:var(--gris-oscuro);">#<?php echo str_pad((int)$vr['id_venta'],5,'0',STR_PAD_LEFT); ?></td>
+                        <td style="font-size:12px;"><?php echo date('d/m/Y h:i A', strtotime($vr['fecha'])); ?></td>
+                        <td><?php echo htmlspecialchars($vr['cajero'], ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td style="font-size:12px;color:#64748B;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo htmlspecialchars($vr['resumen_productos'], ENT_QUOTES, 'UTF-8'); ?>">
+                            <?php echo htmlspecialchars($vr['resumen_productos'], ENT_QUOTES, 'UTF-8'); ?>
+                        </td>
+                        <td style="font-weight:bold;">$<?php echo number_format($vr['total'],2); ?></td>
+                        <td style="text-align:center;">
+                            <a href="index.php?ruta=devoluciones&folio=<?php echo (int)$vr['id_venta']; ?>" class="btn-primario" style="padding:6px 12px;font-size:0.85rem;display:inline-block;text-decoration:none;">
+                                ➔ Devolver
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+<?php endif; ?>
 
 <!-- MENSAJE DE ERROR EN BÚSQUEDA -->
 <?php if (isset($error)): ?>

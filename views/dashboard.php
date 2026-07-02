@@ -33,6 +33,33 @@
     .pago-desglose .linea.neto { color: var(--verde, #059669); font-weight: bold; border-top: 1px solid var(--gris-borde); margin-top: 4px; padding-top: 6px; }
 </style>
 
+<!-- TICKET FLASH -->
+<?php if (isset($_SESSION['ultimo_ticket'])): 
+    $ut = $_SESSION['ultimo_ticket'];
+    unset($_SESSION['ultimo_ticket']);
+?>
+    <div style="background:var(--blanco);border:3px solid var(--azul-fuerte);border-radius:12px;padding:25px;margin-bottom:25px;box-shadow:0 8px 20px rgba(13,71,161,0.15);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <h3 style="margin:0;color:var(--azul-fuerte);font-size:1.6rem;display:flex;align-items:center;gap:10px;">✅ Venta Procesada con Éxito</h3>
+            <p style="margin:8px 0 0;color:var(--gris-oscuro);font-size:1.1rem;">
+                Se cobraron <strong><?php echo (int)$ut['articulos']; ?> artículos</strong> usando <strong><?php echo $ut['metodo']==='tarjeta' ? '💳 Tarjeta' : '💵 Efectivo'; ?></strong>.
+            </p>
+            <p style="margin:5px 0 0;color:#64748B;font-size:0.9rem;">
+                Si necesitas devolver esto después, busca el ticket por este folio.
+            </p>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-size:0.9rem;text-transform:uppercase;color:#64748B;font-weight:bold;letter-spacing:1px;margin-bottom:5px;">Folio del Ticket</div>
+            <div style="font-size:3.5rem;font-weight:900;color:var(--gris-oscuro);line-height:1;font-family:monospace;">
+                #<?php echo str_pad($ut['id'], 5, '0', STR_PAD_LEFT); ?>
+            </div>
+            <div style="font-size:1.2rem;font-weight:bold;color:#059669;margin-top:8px;">
+                Total: $<?php echo number_format($ut['total'], 2); ?>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <div class="dashboard-layout">
 
     <!-- PANEL DE PRODUCTOS -->

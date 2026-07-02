@@ -128,7 +128,7 @@ class VentasController {
             );
             $stmtStock = $this->db->prepare(
                 "UPDATE productos SET stock = stock - :cantidad
-                 WHERE id_producto = :id_producto AND stock >= :cantidad"
+                 WHERE id_producto = :id_producto AND stock >= :cantidad_check"
             );
 
             foreach ($_SESSION['carrito'] as $id_producto => $item) {
@@ -143,8 +143,9 @@ class VentasController {
                 ]);
 
                 $stmtStock->execute([
-                    ':cantidad'    => $item['cantidad'],
-                    ':id_producto' => $id_producto,
+                    ':cantidad'       => $item['cantidad'],
+                    ':id_producto'    => $id_producto,
+                    ':cantidad_check' => $item['cantidad'],
                 ]);
 
                 if ($stmtStock->rowCount() === 0) {
@@ -153,6 +154,15 @@ class VentasController {
             }
 
             $this->db->commit();
+            
+            // Guardar el último ticket para el "Ticket Flash" en la vista
+            $_SESSION['ultimo_ticket'] = [
+                'id' => $id_venta,
+                'total' => $total,
+                'metodo' => $metodo_pago,
+                'articulos' => count($_SESSION['carrito'])
+            ];
+
             unset($_SESSION['carrito']);
 
             $icono = $metodo_pago === 'tarjeta' ? '💳' : '💵';

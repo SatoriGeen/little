@@ -7,9 +7,8 @@
 
 // --- Comisiones de métodos de pago ---
 // Tasa de comisión estándar de terminales POS (Clip, iZettle, Bancomer, etc.)
-// 2.5% es el promedio para negocios pequeños en México.
-// Ajusta este valor según tu contrato con el banco/proveedor.
-if (!defined('COMISION_TARJETA')) define('COMISION_TARJETA', 0.025); // 2.5%
+// 4.06% según lo especificado.
+if (!defined('COMISION_TARJETA')) define('COMISION_TARJETA', 0.0406); // 4.06%
 
 // --- Umbrales de niveles de stock ---
 // Productos con stock <= STOCK_UMBRAL_CRITICO se muestran en rojo urgente

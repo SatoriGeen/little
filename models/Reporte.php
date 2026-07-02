@@ -29,9 +29,12 @@ class Reporte {
     }
 
     public function obtenerVentasHoy(): float {
-        $stmt = $this->conexion->prepare(
-            "SELECT COALESCE(SUM(total_neto), 0) AS ingresos FROM ventas WHERE DATE(fecha) = CURDATE()"
-        );
+        $stmt = $this->conexion->prepare("
+            SELECT 
+                (SELECT COALESCE(SUM(total_neto), 0) FROM ventas WHERE DATE(fecha) = CURDATE()) -
+                (SELECT COALESCE(SUM(total_devuelto), 0) FROM devoluciones WHERE DATE(fecha) = CURDATE())
+            AS ingresos
+        ");
         $stmt->execute();
         return (float) ($stmt->fetch(PDO::FETCH_ASSOC)['ingresos'] ?? 0);
     }
@@ -42,11 +45,20 @@ class Reporte {
      */
     public function obtenerVentasUltimosDias(): array {
         $stmt = $this->conexion->prepare(
-            "SELECT DATE(fecha) as dia, SUM(total) as total_dia, SUM(total_neto) as neto_dia
-             FROM ventas
-             WHERE DATE(fecha) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-             GROUP BY DATE(fecha)
-             ORDER BY DATE(fecha) ASC"
+            "SELECT dia, SUM(bruto) as total_dia, SUM(neto) as neto_dia
+             FROM (
+                 SELECT DATE(fecha) as dia, total as bruto, total_neto as neto 
+                 FROM ventas 
+                 WHERE DATE(fecha) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                 
+                 UNION ALL
+                 
+                 SELECT DATE(fecha) as dia, -total_devuelto as bruto, -total_devuelto as neto 
+                 FROM devoluciones 
+                 WHERE DATE(fecha) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+             ) as t
+             GROUP BY dia
+             ORDER BY dia ASC"
         );
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -54,10 +66,20 @@ class Reporte {
 
     public function obtenerProductosEstrella(): array {
         $stmt = $this->conexion->prepare(
-            "SELECT p.nombre, SUM(dv.cantidad) AS total_vendido
-             FROM detalle_ventas dv
-             JOIN productos p ON dv.id_producto = p.id_producto
-             GROUP BY p.id_producto, p.nombre
+            "SELECT nombre, SUM(cantidad) AS total_vendido
+             FROM (
+                 SELECT p.id_producto, p.nombre, dv.cantidad 
+                 FROM detalle_ventas dv 
+                 JOIN productos p ON dv.id_producto = p.id_producto
+                 
+                 UNION ALL
+                 
+                 SELECT p.id_producto, p.nombre, -dd.cantidad 
+                 FROM detalle_devoluciones dd 
+                 JOIN productos p ON dd.id_producto = p.id_producto
+             ) as t
+             GROUP BY id_producto, nombre
+             HAVING total_vendido > 0
              ORDER BY total_vendido DESC
              LIMIT 5"
         );
@@ -136,7 +158,8 @@ class Reporte {
         int $offset           = 0
     ): array {
         $query = "SELECT v.id_venta, v.total, v.metodo_pago, v.comision,
-                         v.total_neto, v.fecha, u.nombre AS cajero
+                         v.total_neto, v.fecha, u.nombre AS cajero,
+                         COALESCE((SELECT SUM(d.total_devuelto) FROM devoluciones d WHERE d.id_venta = v.id_venta), 0) as devuelto
                   FROM ventas v
                   JOIN usuarios u ON v.id_usuario = u.id_usuario";
 
@@ -154,6 +177,20 @@ class Reporte {
         $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($resultados as &$fila) {
+            $devuelto = (float) $fila['devuelto'];
+            $total = (float) $fila['total'];
+            
+            if ($devuelto >= $total && $total > 0) {
+                $fila['estado'] = 'Devuelta';
+            } elseif ($devuelto > 0) {
+                $fila['estado'] = 'Parcial';
+            } else {
+                $fila['estado'] = 'Normal';
+            }
+        }
+        return $resultados;
     }
 }

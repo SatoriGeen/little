@@ -40,8 +40,16 @@ class ReportesController {
         $topProductos  = $this->model->obtenerProductosEstrella();
 
         // NUEVOS: desglose de pagos y total de devoluciones
-        $resumen_pagos     = $this->model->obtenerResumenPagos($fecha_inicio, $fecha_fin);
+        $resumen_pagos      = $this->model->obtenerResumenPagos($fecha_inicio, $fecha_fin);
         $total_devoluciones = $this->model->obtenerTotalDevoluciones($fecha_inicio, $fecha_fin);
+
+        // Restar devoluciones a los KPIs principales para mostrar ingresos reales
+        if (isset($kpis['ingresos'])) {
+            $kpis['ingresos'] -= $total_devoluciones;
+        }
+        if (isset($kpis['ingresos_netos'])) {
+            $kpis['ingresos_netos'] -= $total_devoluciones;
+        }
 
         $pagina_actual = max(1, (int) ($_GET['pagina'] ?? 1));
         $limite        = defined('VENTAS_POR_PAGINA_HISTORIAL') ? VENTAS_POR_PAGINA_HISTORIAL : 10;

@@ -134,11 +134,12 @@
             <th>Total</th>
             <th>Comisión</th>
             <th>Neto</th>
+            <th>Estado</th>
         </tr>
     </thead>
     <tbody>
         <?php if(empty($historial)): ?>
-            <tr><td colspan="7" style="text-align:center;padding:30px;color:#94A3B8;">Sin ventas en este periodo.</td></tr>
+            <tr><td colspan="8" style="text-align:center;padding:30px;color:#94A3B8;">Sin ventas en este periodo.</td></tr>
         <?php else: ?>
             <?php foreach($historial as $venta): ?>
                 <tr>
@@ -157,6 +158,17 @@
                         <?php echo ($venta['comision']>0) ? '-$'.number_format($venta['comision'],2) : '-'; ?>
                     </td>
                     <td><strong style="color:var(--azul-fuerte);">$<?php echo number_format($venta['total_neto']??$venta['total'],2); ?></strong></td>
+                    <td>
+                        <?php 
+                        $estado = $venta['estado'] ?? 'Normal';
+                        if ($estado === 'Devuelta'): ?>
+                            <span style="font-size:11px;padding:3px 8px;border-radius:10px;font-weight:bold;background:#FEE2E2;color:#991B1B;">Devuelta</span>
+                        <?php elseif ($estado === 'Parcial'): ?>
+                            <span style="font-size:11px;padding:3px 8px;border-radius:10px;font-weight:bold;background:#FEF3C7;color:#92400E;">Parcial</span>
+                        <?php else: ?>
+                            <span style="font-size:11px;padding:3px 8px;border-radius:10px;font-weight:bold;background:#F1F5F9;color:#64748B;">Completada</span>
+                        <?php endif; ?>
+                    </td>
                 </tr>
             <?php endforeach; ?>
         <?php endif; ?>
